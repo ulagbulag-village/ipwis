@@ -1,0 +1,11 @@
+[workspace]
+members = [
+    "modules/dummy",
+    "modules/dummy/api",
+    "modules/dummy/runner",
+    "modules/ipfis",
+    "modules/ipfis/api",
+    "pallet",
+    "runtime",
+]
+default-members = ["runtime"]
