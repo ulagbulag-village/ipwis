@@ -13,14 +13,14 @@ impl Ipwis for IpwisImpl {
 
         unsafe {
             let mut ret = BytesResult::default();
-            let mut ret_buf = Vec::with_capacity(64);
-            ret.buf = ret_buf.as_mut_ptr() as u32;
 
             self::extrinsics::call(buf, len, &mut ret);
-            ret_buf.set_len(ret.len as usize);
             dbg!(&ret.ok);
             dbg!(&ret.len);
-            dbg!(&ret_buf);
+
+            let mut ret_buf = Vec::with_capacity(ret.len as usize);
+            self::extrinsics::load(ret_buf.as_mut_ptr());
+            ret_buf.set_len(ret.len as usize);
 
             if ret.ok == 0 {
                 Ok(String::from_utf8_unchecked(ret_buf))
@@ -37,5 +37,6 @@ mod extrinsics {
     #[link(wasm_import_module = "ipwis-modules-ipwis")]
     extern "C" {
         pub fn call(buf: *const u8, len: usize, ret: &mut BytesResult);
+        pub fn load(buf: *const u8);
     }
 }

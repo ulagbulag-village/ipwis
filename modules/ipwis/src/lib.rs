@@ -3,9 +3,21 @@ use avusen::{function::Function, result::BytesResult, source::Source};
 use wasmtime::*;
 use wasmtime_wasi::WasiCtx;
 
+pub struct MyCtx {
+    pub wasi: WasiCtx,
+    data: Option<Vec<u8>>,
+}
+
+impl MyCtx {
+    pub fn new(wasi: WasiCtx) -> Self {
+        Self { wasi, data: None }
+    }
+}
+
 #[no_mangle]
-pub async fn link(linker: &mut Linker<WasiCtx>) -> Result<()> {
+pub async fn link(linker: &mut Linker<MyCtx>) -> Result<()> {
     linker.func_wrap("ipwis-modules-ipwis", "call", call_unchecked)?;
+    linker.func_wrap("ipwis-modules-ipwis", "load", load_unchecked)?;
     Ok(())
 }
 
@@ -16,7 +28,19 @@ fn get_caller_memory<T>(caller: &mut Caller<T>) -> Memory {
     memory.unwrap()
 }
 
-fn call_unchecked(mut caller: Caller<'_, WasiCtx>, buf: u32, len: u32, ret: u32) {
+fn load_unchecked(mut caller: Caller<'_, MyCtx>, buf: u32) {
+    let memory = get_caller_memory(&mut caller);
+    let ctx = caller.data_mut();
+
+    if let Some(data) = ctx.data.take() {
+        unsafe {
+            let buf = memory.data_ptr(&caller).offset(buf as isize) as *mut u8;
+            buf.copy_from(data.as_ptr(), data.len());
+        }
+    }
+}
+
+fn call_unchecked(mut caller: Caller<'_, MyCtx>, buf: u32, len: u32, ret: u32) {
     let memory = get_caller_memory(&mut caller);
     let func = memory
         .data(&caller)
@@ -41,9 +65,7 @@ fn call_unchecked(mut caller: Caller<'_, WasiCtx>, buf: u32, len: u32, ret: u32)
         dbg!((*ret).ok);
         dbg!((*ret).len);
 
-        let buf = memory.data_ptr(&caller).offset((*ret).buf as isize) as *mut u8;
-        buf.copy_from(value.as_ptr(), value.len() as usize);
-
+        caller.data_mut().data.replace(value.into());
         dbg!(3);
     }
 }

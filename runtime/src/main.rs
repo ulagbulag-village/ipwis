@@ -12,7 +12,9 @@ async fn main() -> Result<()> {
     // Define the WASI functions globally on the `Config`.
     let engine = Engine::new(Config::new().async_support(true))?;
     let mut linker = Linker::new(&engine);
-    wasmtime_wasi::add_to_linker(&mut linker, |s| s)?;
+    wasmtime_wasi::add_to_linker(&mut linker, |s: &mut ipwis_modules_ipwis::MyCtx| {
+        &mut s.wasi
+    })?;
 
     // Link the external modules
     // ipwis_modules_dummy::link(&mut linker).await?;
@@ -31,7 +33,7 @@ async fn main() -> Result<()> {
         .inherit_stdio()
         .inherit_args()?
         .build();
-    let mut store = Store::new(&engine, wasi);
+    let mut store = Store::new(&engine, ipwis_modules_ipwis::MyCtx::new(wasi));
     linker.module_async(&mut store, "", &module).await?;
 
     let func = linker
