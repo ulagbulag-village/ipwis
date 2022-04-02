@@ -2,9 +2,11 @@
 members = [
     "modules/dummy",
     "modules/dummy/api",
+    "modules/dummy/common",
     "modules/dummy/runner",
     "modules/ipwis",
     "modules/ipwis/api",
+    "modules/ipwis/common",
     "pallet",
     "runtime",
 ]
