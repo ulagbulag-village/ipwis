@@ -1,5 +1,5 @@
 [package]
-name = "ipfis-runtime"
+name = "ipwis-runtime"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0"
-ipfis-modules-dummy = { path = "../modules/dummy" }
+ipwis-modules-dummy = { path = "../modules/dummy" }
 tokio = { version = "1.17", features = ["full"] }
 wasmtime = "0.35"
 wasmtime-wasi = "0.35"

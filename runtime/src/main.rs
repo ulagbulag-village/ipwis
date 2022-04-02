@@ -15,7 +15,7 @@ async fn main() -> Result<()> {
     wasmtime_wasi::add_to_linker(&mut linker, |s| s)?;
 
     // Link the external modules
-    ipfis_modules_dummy::link(&mut linker).await?;
+    ipwis_modules_dummy::link(&mut linker).await?;
 
     // Create a WASI context and put it in a Store; all instances in the store
     // share this context. `WasiCtxBuilder` provides a number of ways to
@@ -29,7 +29,7 @@ async fn main() -> Result<()> {
     // Instantiate our module with the imports we've created, and run it.
     let module = Module::from_file(
         &engine,
-        "./target/wasm32-wasi/debug/ipfis-modules-dummy-runner.wasi.wasm",
+        "./target/wasm32-wasi/debug/ipwis-modules-dummy-runner.wasi.wasm",
     )?;
     linker.module_async(&mut store, "", &module).await?;
 
