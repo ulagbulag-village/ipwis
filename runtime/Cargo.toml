@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0"
 ipwis-modules-dummy = { path = "../modules/dummy" }
+ipwis-modules-ipwis = { path = "../modules/ipwis" }
 tokio = { version = "1.17", features = ["full"] }
 wasmtime = "0.35"
 wasmtime-wasi = "0.35"
