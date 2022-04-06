@@ -1,6 +1,34 @@
+pub extern crate paste;
+
 use anyhow::{anyhow, bail, Result};
 pub use ipwis_modules_codec_common::{Codec, ExternFn, RawData, RawResult};
 use serde::{de::DeserializeOwned, Serialize};
+
+#[macro_export]
+macro_rules! module_wrap {
+    ( extern impl $trait:ident for $module:literal {$(
+        fn $f:ident(&self, $data:ident: $data_ty:ty) -> Result<$ret:ty>;
+    )*}) => {
+        ::ipwis_modules_codec_api::paste::paste! {
+            pub use [<$module:snake _common>]::$trait;
+
+            #[derive(Copy, Clone)]
+            pub struct [<$trait Impl>];
+
+            impl [<$module:snake _common>]::$trait for [<$trait Impl>] {$(
+                fn $f(&self, $data: $data_ty) -> ::anyhow::Result<$ret> {
+                    #[link(wasm_import_module = $module)]
+                    extern "C" {
+                        fn [<__ $f>](data: u32, result: u32);
+                    }
+
+                    use ::ipwis_modules_codec_api::{Codec, CodecImpl};
+                    CodecImpl.call($data, [<__ $f>])
+                }
+            )*}
+        }
+    };
+}
 
 #[derive(Copy, Clone)]
 pub struct CodecImpl;

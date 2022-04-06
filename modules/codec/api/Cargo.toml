@@ -9,4 +9,5 @@ edition = "2021"
 anyhow = "1.0"
 avusen = { path = "../../../../avusen" }
 ipwis-modules-codec-common = { path = "../common" }
+paste = "1.0"
 serde = "1.0"
