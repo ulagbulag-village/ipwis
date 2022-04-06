@@ -37,8 +37,10 @@ jobs:
           rustup update stable
           rustup target add wasm32-unknown-unknown --toolchain nightly
 
+      - name: Patch local dependencies
+        run: |
+          find . -type f -name '*.toml' | xargs sed -i 's/^\(avusen = \){.*}/\1{ git = "https:\/\/github.com\/ulagbulag-village\/avusen.git" }/g'
+
       - name: Check Build
         run: |
-          # Patch local dependencies
-          sed -i 's/^\(avusen = \){.*}/\1{ git = "https:\/\/github.com\/ulagbulag-village\/avusen.git" }/g' **/*.toml
           cargo check --release
