@@ -8,4 +8,5 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0"
 avusen = { path = "../../../../avusen" }
+ipwis-modules-codec-api = { path = "../../codec/api" }
 ipwis-modules-ipwis-common = { path = "../common" }

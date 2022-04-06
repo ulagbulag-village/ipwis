@@ -2,7 +2,7 @@ use anyhow::Result;
 use serde::{de::DeserializeOwned, Serialize};
 
 pub trait Codec {
-    fn call<T, R>(&self, data: &T, f: unsafe fn(RawData, &mut RawResult)) -> Result<R>
+    fn call<T, R>(&self, data: &T, f: ExternFn) -> Result<R>
     where
         T: Serialize,
         R: DeserializeOwned,
@@ -10,22 +10,18 @@ pub trait Codec {
         self.load(unsafe { self.dump(data, f) }?)
     }
 
-    fn call_raw<T>(&self, data: &T, f: unsafe fn(RawData, &mut RawResult)) -> Result<Vec<u8>>
+    fn call_raw<T>(&self, data: &T, f: ExternFn) -> Result<Vec<u8>>
     where
         T: Serialize,
     {
         self.load_raw(unsafe { self.dump(data, f) }?)
     }
 
-    unsafe fn dump<T>(&self, data: &T, f: unsafe fn(RawData, &mut RawResult)) -> Result<RawResult>
+    unsafe fn dump<T>(&self, data: &T, f: ExternFn) -> Result<RawResult>
     where
         T: Serialize;
 
-    unsafe fn dump_raw(
-        &self,
-        bytes: &[u8],
-        f: unsafe fn(RawData, &mut RawResult),
-    ) -> Result<RawResult>;
+    unsafe fn dump_raw(&self, bytes: &[u8], f: ExternFn) -> Result<RawResult>;
 
     fn load<T>(&self, result: RawResult) -> Result<T>
     where
@@ -33,6 +29,8 @@ pub trait Codec {
 
     fn load_raw(&self, result: RawResult) -> Result<Vec<u8>>;
 }
+
+pub type ExternFn = unsafe extern "C" fn(u32 /* RawData */, u32 /* RawResult */);
 
 #[repr(C)]
 #[derive(Copy, Clone, Default)]

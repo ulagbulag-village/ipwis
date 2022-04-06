@@ -6,6 +6,9 @@ pub fn main() {
     dbg!(&result);
 }
 
-unsafe fn ensure_err(_: RawData, result: &mut RawResult) {
-    result.ok = 3;
+unsafe extern "C" fn ensure_err(data: u32, result: u32) {
+    let _data = data as *const RawData;
+    let mut result = result as *mut RawResult;
+
+    (*result).ok = 3;
 }

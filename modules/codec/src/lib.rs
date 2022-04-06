@@ -19,7 +19,7 @@ impl CodecCtx {
         Self { wasi, data: None }
     }
 
-    pub fn wrap_func<T, R, F>(mut caller: Caller<Self>, data: u32, wasi: u32, f: F)
+    pub fn func_wrap<T, R, F>(mut caller: Caller<Self>, data: u32, wasi: u32, f: F)
     where
         T: DeserializeOwned,
         R: Serialize,

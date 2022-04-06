@@ -1,38 +1,30 @@
 use anyhow::{anyhow, bail, Result};
-pub use ipwis_modules_codec_common::{Codec, RawData, RawResult};
+pub use ipwis_modules_codec_common::{Codec, ExternFn, RawData, RawResult};
 use serde::{de::DeserializeOwned, Serialize};
 
 #[derive(Copy, Clone)]
 pub struct CodecImpl;
 
 impl Codec for CodecImpl {
-    unsafe fn dump<T>(&self, data: &T, f: unsafe fn(RawData, &mut RawResult)) -> Result<RawResult>
+    unsafe fn dump<T>(&self, data: &T, f: ExternFn) -> Result<RawResult>
     where
         T: Serialize,
     {
         let bytes = avusen::codec::encode(data)?;
-        let data = RawData {
-            buf: bytes.as_ptr() as u32,
-            len: bytes.len() as u32,
-        };
-
-        let mut result = RawResult::default();
-        f(data, &mut result);
-        Ok(result)
+        self.dump_raw(&bytes, f)
     }
 
-    unsafe fn dump_raw(
-        &self,
-        bytes: &[u8],
-        f: unsafe fn(RawData, &mut RawResult),
-    ) -> Result<RawResult> {
+    unsafe fn dump_raw(&self, bytes: &[u8], f: ExternFn) -> Result<RawResult> {
         let data = RawData {
             buf: bytes.as_ptr() as u32,
             len: bytes.len() as u32,
         };
 
         let mut result = RawResult::default();
-        f(data, &mut result);
+        f(
+            &data as *const RawData as u32,
+            &mut result as *mut RawResult as u32,
+        );
         Ok(result)
     }
 

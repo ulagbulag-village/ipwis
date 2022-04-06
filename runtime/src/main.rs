@@ -18,12 +18,12 @@ async fn main() -> Result<()> {
     // Link the external modules
     ipwis_modules_codec::link(&mut linker).await?;
     // ipwis_modules_dummy::link(&mut linker).await?;
-    // ipwis_modules_ipwis::link(&mut linker).await?;
+    ipwis_modules_ipwis::link(&mut linker).await?;
 
     // Instantiate our module with the imports we've created, and run it.
     let module = Module::from_file(
         &engine,
-        "./target/wasm32-wasi/debug/ipwis-modules-codec-example.wasi.wasm",
+        "./target/wasm32-wasi/debug/ipwis-modules-ipwis-example.wasi.wasm",
     )?;
 
     // Create a WASI context and put it in a Store; all instances in the store

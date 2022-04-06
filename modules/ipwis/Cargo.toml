@@ -8,5 +8,5 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0"
 avusen = { path = "../../../avusen" }
+ipwis-modules-codec = { path = "../codec" }
 wasmtime = "0.35"
-wasmtime-wasi = "0.35"
