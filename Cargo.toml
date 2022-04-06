@@ -1,5 +1,9 @@
 [workspace]
 members = [
+    "modules/codec",
+    "modules/codec/api",
+    "modules/codec/common",
+    "modules/codec/example",
     "modules/dummy",
     "modules/dummy/api",
     "modules/dummy/common",

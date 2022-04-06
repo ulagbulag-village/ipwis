@@ -5,13 +5,13 @@ pub struct DummyImpl;
 
 impl Dummy for DummyImpl {
     fn add_one(&self, a: i32) -> i32 {
-        unsafe { self::extrinsics::add_one(a) }
+        unsafe { self::extrinsics::__add_one(a) }
     }
 }
 
 mod extrinsics {
     #[link(wasm_import_module = "ipwis-modules-dummy")]
     extern "C" {
-        pub fn add_one(a: i32) -> i32;
+        pub fn __add_one(a: i32) -> i32;
     }
 }

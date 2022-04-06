@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0"
+ipwis-modules-codec = { path = "../modules/codec" }
 ipwis-modules-dummy = { path = "../modules/dummy" }
 ipwis-modules-ipwis = { path = "../modules/ipwis" }
 tokio = { version = "1.17", features = ["full"] }

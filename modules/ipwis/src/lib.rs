@@ -14,10 +14,9 @@ impl MyCtx {
     }
 }
 
-#[no_mangle]
 pub async fn link(linker: &mut Linker<MyCtx>) -> Result<()> {
-    linker.func_wrap("ipwis-modules-ipwis", "call", call_unchecked)?;
-    linker.func_wrap("ipwis-modules-ipwis", "load", load_unchecked)?;
+    linker.func_wrap("ipwis-modules-ipwis", "__call", call_unchecked)?;
+    linker.func_wrap("ipwis-modules-ipwis", "__load", load_unchecked)?;
     Ok(())
 }
 
@@ -71,7 +70,7 @@ fn call_unchecked(mut caller: Caller<'_, MyCtx>, buf: u32, len: u32, ret: u32) {
 }
 
 fn call(func: &[u8]) -> Result<String> {
-    let func: Function = avusen::decode(func)?;
+    let func: Function = avusen::codec::decode(func)?;
 
     match func.program {
         Source::Ipfs { host, .. } => Ok(host.unwrap()),

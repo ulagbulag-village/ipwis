@@ -1,0 +1,12 @@
+[package]
+name = "ipwis-modules-codec-api"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0"
+avusen = { path = "../../../../avusen" }
+ipwis-modules-codec-common = { path = "../common" }
+serde = "1.0"

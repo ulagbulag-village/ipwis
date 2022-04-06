@@ -2,9 +2,8 @@ use anyhow::Result;
 use wasmtime::*;
 use wasmtime_wasi::WasiCtx;
 
-#[no_mangle]
 pub async fn link(linker: &mut Linker<WasiCtx>) -> Result<()> {
-    linker.func_wrap("ipwis-modules-dummy", "add_one", add_one)?;
+    linker.func_wrap("ipwis-modules-dummy", "__add_one", add_one)?;
     Ok(())
 }
 

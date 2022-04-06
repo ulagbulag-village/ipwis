@@ -7,19 +7,19 @@ pub struct IpwisImpl;
 
 impl Ipwis for IpwisImpl {
     fn call(&self, func: &Function) -> Result<String> {
-        let bytes = avusen::encode(func)?;
+        let bytes = avusen::codec::encode(func)?;
         let buf = bytes.as_ptr();
         let len = bytes.len();
 
         unsafe {
             let mut ret = BytesResult::default();
 
-            self::extrinsics::call(buf, len, &mut ret);
+            self::extrinsics::__call(buf, len, &mut ret);
             dbg!(&ret.ok);
             dbg!(&ret.len);
 
             let mut ret_buf = Vec::with_capacity(ret.len as usize);
-            self::extrinsics::load(ret_buf.as_mut_ptr());
+            self::extrinsics::__load(ret_buf.as_mut_ptr());
             ret_buf.set_len(ret.len as usize);
 
             if ret.ok == 0 {
@@ -36,7 +36,7 @@ mod extrinsics {
 
     #[link(wasm_import_module = "ipwis-modules-ipwis")]
     extern "C" {
-        pub fn call(buf: *const u8, len: usize, ret: &mut BytesResult);
-        pub fn load(buf: *const u8);
+        pub fn __call(buf: *const u8, len: usize, ret: &mut BytesResult);
+        pub fn __load(buf: *const u8);
     }
 }
