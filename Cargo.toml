@@ -1,0 +1,14 @@
+[workspace]
+resolver = "2"
+members = [
+    "api",
+    "common",
+    "demo",
+    "kernel",
+    "kernel/common",
+    "modules/stream/api",
+    "modules/stream/common",
+    "pallet",
+    "runtime",
+]
+default-members = ["runtime"]
