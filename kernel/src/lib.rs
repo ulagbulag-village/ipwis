@@ -3,10 +3,10 @@
 pub extern crate ipwis_kernel_common as common;
 
 pub mod ctx;
-pub mod extrinsics;
-pub mod interrupt;
+pub(crate) mod extrinsics;
+pub(crate) mod interrupt;
 pub mod kernel;
 pub mod memory;
-mod resource;
+pub mod resource;
 mod scheduler;
-pub mod task;
+pub(crate) mod task;

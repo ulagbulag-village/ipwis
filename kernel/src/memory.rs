@@ -46,6 +46,10 @@ impl<S> IpwisMemory<S>
 where
     S: AsContextMut,
 {
+    pub unsafe fn is_null(&self, data: ExternDataRef) -> bool {
+        (data as *const ExternData).is_null()
+    }
+
     pub unsafe fn load(&self, data: ExternDataRef) -> &[u8] {
         self.load_raw(data as *const ExternData)
     }
@@ -113,17 +117,16 @@ where
         *dst = self.dump(src);
     }
 
-    pub unsafe fn return_error<R>(
-        &mut self,
-        err: ::ipis::core::anyhow::Error,
-        dst: ExternDataRef,
-    ) -> R
-    where
-        R: Default,
-    {
-        self.copy_raw(&err.to_string().into_bytes(), dst as *mut ExternData);
+    pub unsafe fn copy_error(&mut self, err: ::ipis::core::anyhow::Error, dst: ExternDataRef) {
+        self.copy(&err.to_string().into_bytes(), dst);
+    }
 
-        Default::default()
+    pub unsafe fn set_len(&mut self, len: u32, dst: ExternDataRef) {
+        self.set_len_raw(len, dst as *mut ExternData)
+    }
+
+    unsafe fn set_len_raw(&mut self, len: u32, dst: *mut ExternData) {
+        (*dst).len = len;
     }
 }
 

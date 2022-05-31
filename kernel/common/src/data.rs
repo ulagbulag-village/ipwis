@@ -1,9 +1,11 @@
 use core::mem::MaybeUninit;
 
+use bytecheck::CheckBytes;
 use ipis::core::anyhow::{bail, Result};
+use rkyv::{Archive, Deserialize, Serialize};
 
-#[derive(Copy, Clone, Debug, Default)]
-#[repr(C)]
+#[derive(Copy, Clone, Debug, Default, Archive, Serialize, Deserialize)]
+#[archive_attr(derive(CheckBytes, Copy, Clone, Debug))]
 pub struct ExternData {
     pub ptr: u32,
     pub len: u32,
@@ -43,6 +45,10 @@ impl ExternData {
             ptr: ptr as u32,
             len: len as u32,
         }
+    }
+
+    pub fn is_null(&self) -> bool {
+        self.ptr == 0
     }
 
     pub fn as_ptr(&self) -> u32 {

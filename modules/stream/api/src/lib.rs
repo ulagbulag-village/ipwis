@@ -1,45 +1,68 @@
 #![allow(clippy::missing_safety_doc)]
 
-pub mod reader {
-    use ipis::core::anyhow::Result;
-    use ipwis_api::{ctx::IpwisCaller, memory::IpwisMemory};
+// pub extern crate ipwis_modules_stream_common as common;
 
-    pub unsafe fn next(caller: IpwisCaller, error: u32, id: u64, buf: u32) -> u32 {
-        unsafe fn try_call(_id: u64, data: &mut [u8]) -> Result<u32> {
-            data[0] = 19;
-            data[1] = 23;
-            Ok(2)
-        }
+use ipis::{
+    core::{anyhow::Result, signed::IsSigned},
+    pin::PinnedInner,
+    rkyv::AlignedVec,
+};
+use ipwis_kernel::{
+    common::interrupt::{InterruptHandler, InterruptId},
+    resource::ResourceStore,
+};
+use ipwis_modules_stream_common::io;
 
-        let mut memory = IpwisMemory::from_caller(caller);
+#[derive(Default)]
+pub struct StreamHandler {
+    store: ResourceStore<()>,
+}
 
-        let data = memory.load_mut(buf);
+impl InterruptHandler for StreamHandler {
+    fn id(&self) -> InterruptId {
+        io::OpCode::ID
+    }
 
-        match try_call(id, data) {
-            Ok(e) => e,
-            Err(e) => memory.return_error(e, error),
+    fn handle_raw(&self, inputs: &[u8]) -> Result<AlignedVec> {
+        match PinnedInner::deserialize_owned(inputs)? {
+            io::OpCode::ReaderNext(req) => {
+                self.handle_reader_next(req)?.to_bytes().map_err(Into::into)
+            }
+            io::OpCode::WriterNext(req) => {
+                self.handle_writer_next(req)?.to_bytes().map_err(Into::into)
+            }
+            io::OpCode::WriterFlush(req) => self
+                .handle_writer_flush(req)?
+                .to_bytes()
+                .map_err(Into::into),
+            io::OpCode::WriterShutdown(req) => self
+                .handle_writer_shutdown(req)?
+                .to_bytes()
+                .map_err(Into::into),
         }
     }
 }
 
-pub mod writer {
-    use ipis::core::anyhow::Result;
-    use ipwis_api::{ctx::IpwisCaller, memory::IpwisMemory};
+impl StreamHandler {
+    fn handle_reader_next(&self, req: io::request::ReaderNext) -> Result<io::response::ReaderNext> {
+        todo!()
+    }
 
-    pub unsafe fn next(caller: IpwisCaller, error: u32, id: u64, buf: u32) -> u32 {
-        unsafe fn try_call(_id: u64, data: &mut [u8]) -> Result<u32> {
-            data[0] = 19;
-            data[1] = 23;
-            Ok(2)
-        }
+    fn handle_writer_next(&self, req: io::request::WriterNext) -> Result<io::response::WriterNext> {
+        todo!()
+    }
 
-        let mut memory = IpwisMemory::from_caller(caller);
+    fn handle_writer_flush(
+        &self,
+        req: io::request::WriterFlush,
+    ) -> Result<io::response::WriterFlush> {
+        todo!()
+    }
 
-        let data = memory.load_mut(buf);
-
-        match try_call(id, data) {
-            Ok(e) => e,
-            Err(e) => memory.return_error(e, error),
-        }
+    fn handle_writer_shutdown(
+        &self,
+        req: io::request::WriterShutdown,
+    ) -> Result<io::response::WriterShutdown> {
+        todo!()
     }
 }

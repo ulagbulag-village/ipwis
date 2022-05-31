@@ -11,10 +11,12 @@ use ipis::{
         signed::IsSigned,
         value::chrono::DateTime,
     },
+    rkyv::AlignedVec,
     tokio::{self, sync::Mutex},
 };
 use ipwis_kernel_common::{
     extrinsics::InterruptArgs,
+    interrupt::InterruptId,
     protection::ProtectionMode,
     task::{TaskCtx, TaskId, TaskState},
 };
@@ -111,6 +113,10 @@ impl<T> TaskStore<T> {
         }
 
         Ok(id)
+    }
+
+    pub fn handle_interrupt_raw(&self, id: InterruptId, inputs: &[u8]) -> Result<AlignedVec> {
+        self.interrupt_handlers.handle_raw(id, inputs)
     }
 
     pub async fn lock_and_wait(&self, id: TaskId) -> Result<IpwisStore>

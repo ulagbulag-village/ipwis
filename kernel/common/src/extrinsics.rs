@@ -1,9 +1,9 @@
-use crate::{data::ExternDataRef, interrupt::InterruptIdInner};
+use crate::data::ExternDataRef;
 
 #[link(wasm_import_module = "ipwis_kernel")]
 extern "C" {
     pub fn syscall(
-        id: InterruptIdInner,
+        handler: ExternDataRef,
         inputs: ExternDataRef,
         outputs: ExternDataRef,
         errors: ExternDataRef,
@@ -11,13 +11,13 @@ extern "C" {
 }
 
 pub type InterruptFn = unsafe extern "C" fn(
-    id: InterruptIdInner,
+    handler: ExternDataRef,
     inputs: ExternDataRef,
     outputs: ExternDataRef,
     errors: ExternDataRef,
 );
 pub type InterruptArgs = (
-    /* id */ InterruptIdInner,
+    /* handler */ ExternDataRef,
     /* inputs */ ExternDataRef,
     /* outputs */ ExternDataRef,
     /* errors */ ExternDataRef,

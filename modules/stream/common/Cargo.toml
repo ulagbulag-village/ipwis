@@ -18,3 +18,6 @@ ipis = { git = "https://github.com/ulagbulag-village/ipis", features = [
     "derive",
 ] }
 ipwis-kernel-common = { path = "../../../kernel/common" }
+
+bytecheck = "0.6"
+rkyv = { version = "0.7", features = ["archive_be"] }
