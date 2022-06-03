@@ -1,3 +1,5 @@
+pub extern crate ipwis_kernel_common as kernel;
+
 use ipiis_common::{define_io, external_call, Ipiis, ServerResult};
 use ipis::{
     async_trait::async_trait,

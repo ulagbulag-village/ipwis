@@ -1,13 +1,17 @@
 use ipwis_kernel_common::data::{ExternData, ExternDataRef};
 use wasmtime::{AsContext, AsContextMut, Caller, Extern, Instance, Memory, TypedFunc};
 
-pub struct IpwisMemory<S> {
+use crate::ctx::IpwisCaller;
+
+pub type IpwisMemory<'a> = IpwisMemoryInner<&'a mut IpwisCaller<'a>>;
+
+pub struct IpwisMemoryInner<S> {
     pub store: S,
     alloc: Alloc,
     memory: Memory,
 }
 
-impl<'a, 'c, T> IpwisMemory<&'c mut Caller<'a, T>> {
+impl<'a, 'c, T> IpwisMemoryInner<&'c mut Caller<'a, T>> {
     pub fn from_caller(caller: &'c mut Caller<'a, T>) -> Self {
         Self {
             alloc: {
@@ -23,7 +27,7 @@ impl<'a, 'c, T> IpwisMemory<&'c mut Caller<'a, T>> {
     }
 }
 
-impl<S> IpwisMemory<S>
+impl<S> IpwisMemoryInner<S>
 where
     S: AsContextMut,
 {
@@ -42,18 +46,10 @@ where
     }
 }
 
-impl<S> IpwisMemory<S>
+impl<S> ::ipwis_kernel_common::memory::Memory for IpwisMemoryInner<S>
 where
-    S: AsContextMut,
+    S: AsContextMut + Send + Sync,
 {
-    pub unsafe fn is_null(&self, data: ExternDataRef) -> bool {
-        (data as *const ExternData).is_null()
-    }
-
-    pub unsafe fn load(&self, data: ExternDataRef) -> &[u8] {
-        self.load_raw(data as *const ExternData)
-    }
-
     unsafe fn load_raw(&self, data: *const ExternData) -> &[u8] {
         let ptr = self
             .memory
@@ -70,10 +66,6 @@ where
             Some(slice) => slice,
             None => panic!("invalid memory access"),
         }
-    }
-
-    pub unsafe fn load_mut(&mut self, data: ExternDataRef) -> &mut [u8] {
-        self.load_mut_raw(data as *const ExternData)
     }
 
     unsafe fn load_mut_raw(&mut self, data: *const ExternData) -> &mut [u8] {
@@ -94,7 +86,7 @@ where
         }
     }
 
-    pub unsafe fn dump(&mut self, data: &[u8]) -> ExternData {
+    unsafe fn dump(&mut self, data: &[u8]) -> ExternData {
         let len = data.len();
         let ptr = self
             .alloc
@@ -109,24 +101,8 @@ where
         }
     }
 
-    pub unsafe fn copy(&mut self, src: &[u8], dst: ExternDataRef) {
-        self.copy_raw(src, dst as *mut ExternData)
-    }
-
     unsafe fn copy_raw(&mut self, src: &[u8], dst: *mut ExternData) {
         *dst = self.dump(src);
-    }
-
-    pub unsafe fn copy_error(&mut self, err: ::ipis::core::anyhow::Error, dst: ExternDataRef) {
-        self.copy(&err.to_string().into_bytes(), dst);
-    }
-
-    pub unsafe fn set_len(&mut self, len: u32, dst: ExternDataRef) {
-        self.set_len_raw(len, dst as *mut ExternData)
-    }
-
-    unsafe fn set_len_raw(&mut self, len: u32, dst: *mut ExternData) {
-        (*dst).len = len;
     }
 }
 

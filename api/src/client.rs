@@ -1,8 +1,10 @@
+use ipiis_api::common::Ipiis;
 use ipis::{
     async_trait::async_trait,
     core::{
         account::{AccountRef, GuaranteeSigned, GuarantorSigned},
         anyhow::Result,
+        value::text::Text,
     },
     env::Infer,
     futures::TryFutureExt,
@@ -75,7 +77,7 @@ impl<IpiisClient> IpwisClientInner<IpiisClient> {
 #[async_trait]
 impl<IpiisClient> Ipwis for IpwisClientInner<IpiisClient>
 where
-    IpiisClient: Send + Sync,
+    IpiisClient: Ipiis + Send + Sync,
 {
     async fn task_spawn(
         &self,
@@ -96,6 +98,12 @@ where
     }
 
     async fn task_poll(&self, id: GuarantorSigned<TaskId>) -> Result<GuaranteeSigned<TaskPoll>> {
-        todo!()
+        let poll = match self.kernel.poll(id.data.data.data).await {
+            Ok(Some(ctx)) => TaskPoll::Ready(todo!()),
+            Ok(None) => TaskPoll::Pending,
+            Err(err) => TaskPoll::Trap(Text::with_en_us(err.to_string())),
+        };
+
+        self.ipiis.sign(id.guarantor.account, poll)
     }
 }

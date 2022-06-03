@@ -1,22 +1,13 @@
-use core::sync::atomic::{AtomicU64, Ordering};
-use std::collections::BTreeMap;
+use core::sync::atomic::{AtomicU32, Ordering};
+use std::collections::HashMap;
 
 use ipis::core::anyhow::Result;
-use ipwis_kernel_common::{resource::ResourceId, task::TaskCtx};
+use ipwis_kernel_common::resource::ResourceId;
 
-#[derive(Default)]
-pub(crate) struct ResourceManager {}
-
-impl ResourceManager {
-    pub async fn is_affordable(&self, ctx: &TaskCtx) -> Result<bool> {
-        Ok(true)
-    }
-}
-
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ResourceStore<R> {
     seed: ResourceIdSeed,
-    map: BTreeMap<ResourceId, R>,
+    pub map: HashMap<ResourceId, R>,
 }
 
 impl<R> ResourceStore<R> {
@@ -32,8 +23,17 @@ impl<R> ResourceStore<R> {
     }
 }
 
+impl<R> Default for ResourceStore<R> {
+    fn default() -> Self {
+        Self {
+            seed: Default::default(),
+            map: Default::default(),
+        }
+    }
+}
+
 #[derive(Debug)]
-struct ResourceIdSeed(AtomicU64);
+struct ResourceIdSeed(AtomicU32);
 
 impl Default for ResourceIdSeed {
     fn default() -> Self {

@@ -20,9 +20,6 @@ pub struct ExternReader {
     len: u32,
 }
 
-unsafe impl Send for ExternReader {}
-unsafe impl Sync for ExternReader {}
-
 impl ExternReader {
     pub fn new(id: ResourceId, len: u32) -> Self {
         Self { id, len }
@@ -61,9 +58,6 @@ impl AsyncRead for ExternReader {
 pub struct ExternWriter {
     id: ResourceId,
 }
-
-unsafe impl Send for ExternWriter {}
-unsafe impl Sync for ExternWriter {}
 
 impl ExternWriter {
     pub fn new(id: ResourceId) -> Self {

@@ -1,12 +1,15 @@
 use std::sync::Arc;
 
 use ipis::core::{account::GuarantorSigned, anyhow::Result};
-use ipwis_kernel_common::task::{TaskCtx, TaskId};
+use ipwis_kernel_common::{
+    resource::ResourceId,
+    task::{TaskCtx, TaskId},
+};
 use wasmtime::{Config, Engine, Module};
 
 use crate::{
-    ctx::{IpwisCtx, IpwisLinker, IpwisStore},
-    interrupt::InterruptHandlerStore,
+    ctx::{IpwisCtx, IpwisLinker},
+    interrupt::InterruptManager,
     task::{Entry, TaskStore},
 };
 
@@ -27,24 +30,26 @@ impl Scheduler {
         crate::extrinsics::register(&mut linker)?;
 
         // create the other modules
-        let interrupt_handlers: Arc<InterruptHandlerStore> = Default::default();
-        let tasks = TaskStore::new(interrupt_handlers);
+        let interrupt_manager: Arc<InterruptManager> = Default::default();
+        let tasks = TaskStore::new(interrupt_manager);
 
         Ok(Self { linker, tasks })
     }
 
-    pub async fn spawn(&self, ctx: GuarantorSigned<TaskCtx>, program: &[u8]) -> Result<TaskId> {
+    pub async fn spawn(
+        &self,
+        id: ResourceId,
+        ctx: GuarantorSigned<TaskCtx>,
+        program: &[u8],
+    ) -> Result<TaskId> {
         // load a module from given binary
         let module = Module::from_binary(self.linker.engine(), program)?;
 
         // spawn
-        self.tasks.spawn_entry(&self.linker, &module, ctx).await
+        self.tasks.spawn_entry(&self.linker, &module, id, ctx).await
     }
 
-    pub async fn lock_and_wait_raw(&self, id: TaskId) -> Result<IpwisCtx> {
-        self.tasks
-            .lock_and_wait(id)
-            .await
-            .map(IpwisStore::into_data)
+    pub async fn poll(&self, id: TaskId) -> Result<Option<IpwisCtx>> {
+        self.tasks.poll_entry(id).await
     }
 }

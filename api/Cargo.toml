@@ -20,6 +20,3 @@ ipis = { git = "https://github.com/ulagbulag-village/ipis", features = [
 ipiis-api = { git = "https://github.com/ulagbulag-village/ipiis" }
 ipwis-common = { path = "../common" }
 ipwis-kernel = { path = "../kernel" }
-
-wasmtime = "0.37"
-wasmtime-wasi = "0.37"

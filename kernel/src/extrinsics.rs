@@ -1,5 +1,5 @@
-use ipis::{core::anyhow::Result, rkyv::AlignedVec};
-use ipwis_kernel_common::{data::ExternDataRef, interrupt::InterruptId};
+use ipis::{core::anyhow::Result, futures, rkyv::AlignedVec};
+use ipwis_kernel_common::{data::ExternDataRef, interrupt::InterruptId, memory::Memory};
 
 use crate::{
     ctx::{IpwisCaller, IpwisLinker},
@@ -23,9 +23,9 @@ fn syscall(
         IpwisMemory::from_caller(::core::mem::transmute::<_, &mut IpwisCaller>(&mut caller))
     };
 
-    unsafe fn try_handle(
-        caller: &mut IpwisCaller,
-        memory: &mut IpwisMemory<&mut IpwisCaller>,
+    async unsafe fn try_handle<'a>(
+        caller: &mut IpwisCaller<'a>,
+        memory: &mut IpwisMemory<'static>,
         handler: ExternDataRef,
         inputs: ExternDataRef,
     ) -> Result<AlignedVec> {
@@ -39,12 +39,13 @@ fn syscall(
 
         caller
             .data_mut()
-            .store
-            .handle_interrupt_raw(handler, inputs)
+            .interrupt_handlers
+            .handle_raw(memory, handler, inputs)
+            .await
     }
 
     unsafe {
-        match try_handle(&mut caller, &mut memory, handler, inputs) {
+        match futures::executor::block_on(try_handle(&mut caller, &mut memory, handler, inputs)) {
             Ok(buf) => memory.copy(&buf, outputs),
             Err(error) => memory.copy_error(error, errors),
         }

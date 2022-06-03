@@ -20,7 +20,11 @@ use ipis::{
 };
 use rkyv::{Archive, Deserialize, Serialize};
 
-use crate::{data::ExternData, protection::ProtectionMode};
+use crate::{
+    data::ExternData,
+    protection::ProtectionMode,
+    resource::{ResourceConstraints, ResourceId},
+};
 
 pub struct Entry<R> {
     pub ctx: Box<GuarantorSigned<TaskCtx>>,
@@ -45,6 +49,7 @@ pub struct Task<R> {
 ///
 /// It's thread-safe as the context is read-only and is owned by Entry.
 unsafe impl<R> Send for Task<R> {}
+unsafe impl<R> Sync for Task<R> {}
 
 impl<R> Future for Task<R> {
     type Output = Result<R, tokio::task::JoinError>;
@@ -121,19 +126,21 @@ where
 pub struct TaskConstraints {
     pub inputs: ObjectData,
     pub outputs: ClassMetadata,
-    pub due_date: DateTime,
+    pub resources: ResourceConstraints,
 }
 
 impl IsSigned for TaskConstraints {}
 
 #[derive(Copy, Clone, Debug)]
 pub struct TaskState {
-    pub id: TaskId,
+    pub resource_id: ResourceId,
+    pub task_id: TaskId,
     pub inputs: ExternData,
     pub outputs: ExternData,
     pub errors: ExternData,
     pub created_date: DateTime,
     pub protection_mode: ProtectionMode,
+    pub is_working: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Archive, Serialize, Deserialize)]

@@ -1,5 +1,6 @@
 use bytecheck::CheckBytes;
 use ipis::{
+    async_trait::async_trait,
     core::{
         anyhow::Result,
         signed::{IsSigned, Serializer},
@@ -7,20 +8,55 @@ use ipis::{
     pin::PinnedInner,
 };
 use rkyv::{
-    de::deserializers::SharedDeserializeMap, validation::validators::DefaultValidator, Archive,
-    Deserialize, Serialize, AlignedVec,
+    de::deserializers::SharedDeserializeMap, validation::validators::DefaultValidator, AlignedVec,
+    Archive, Deserialize, Serialize,
 };
 
-use crate::data::ExternData;
+use crate::{data::ExternData, memory::Memory};
 
-pub trait InterruptHandler: Send + Sync {
-    fn id(&self) -> InterruptId;
+#[async_trait]
+pub trait InterruptHandler<M>
+where
+    Self: Send + Sync,
+    M: Memory,
+{
+    async unsafe fn handle_raw(&mut self, memory: &mut M, inputs: &[u8]) -> Result<AlignedVec>;
 
-    fn handle_raw(&self, inputs: &[u8]) -> Result<AlignedVec>;
+    async fn release(&mut self) -> Result<()>;
 }
 
-pub trait InterruptFallbackHandler: InterruptHandler + Send + Sync {
-    fn handle_fallback(&self, id: InterruptId, inputs: &[u8]) -> Result<Option<AlignedVec>>;
+#[async_trait]
+pub trait InterruptFallbackHandler<M>
+where
+    Self: InterruptHandler<M> + Send + Sync,
+    M: Memory,
+{
+    async fn handle_fallback(
+        &self,
+        memory: &mut M,
+        id: InterruptId,
+        inputs: &[u8],
+    ) -> Result<AlignedVec>;
+}
+
+#[async_trait]
+pub trait InterruptModule<M>
+where
+    Self: Send + Sync,
+    M: Memory,
+{
+    fn id(&self) -> InterruptId;
+
+    async fn spawn_handler(&self) -> Result<Box<dyn InterruptHandler<M>>>;
+}
+
+#[async_trait]
+pub trait InterruptFallbackModule<M>
+where
+    Self: InterruptModule<M> + Send + Sync,
+    M: Memory,
+{
+    async fn spawn_fallback(&self) -> Result<Box<dyn InterruptFallbackHandler<M>>>;
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]

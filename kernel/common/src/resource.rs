@@ -1,6 +1,23 @@
 use bytecheck::CheckBytes;
-use ipis::core::signed::IsSigned;
+use ipis::{
+    async_trait::async_trait,
+    core::{anyhow::Result, signed::IsSigned, value::chrono::DateTime},
+};
 use rkyv::{Archive, Deserialize, Serialize};
+
+use crate::task::TaskConstraints;
+
+#[async_trait]
+pub trait ResourceManager {
+    async fn alloc(&self, constraints: &TaskConstraints) -> Result<Option<ResourceId>>;
+}
+
+#[derive(Clone, Debug, PartialEq, Archive, Serialize, Deserialize)]
+#[archive(compare(PartialEq))]
+#[archive_attr(derive(CheckBytes, Debug, PartialEq))]
+pub struct ResourceConstraints {
+    pub due_date: DateTime,
+}
 
 #[derive(
     Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Archive, Serialize, Deserialize,
@@ -18,4 +35,4 @@ impl ::core::fmt::LowerHex for ResourceId {
     }
 }
 
-pub type ResourceIdInner = u64;
+pub type ResourceIdInner = u32;

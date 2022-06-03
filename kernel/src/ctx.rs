@@ -6,7 +6,7 @@ use wasmtime::{Caller, Linker, Store};
 use wasmtime_wasi::{WasiCtx, WasiCtxBuilder};
 
 use crate::{
-    interrupt::InterruptHandlerStore,
+    interrupt::{InterruptHandlerStore, InterruptManager},
     task::{Task, TaskStore},
 };
 
@@ -19,18 +19,20 @@ pub struct IpwisCtx {
     pub task: *const TaskCtx,
     pub state: Arc<Mutex<TaskState>>,
     pub store: TaskStore<Task>,
+    pub interrupt_handlers: InterruptHandlerStore,
 }
 
 /// # Safety
 ///
 /// It's thread-safe as the task is read-only and is owned by Entry.
 unsafe impl Send for IpwisCtx {}
+unsafe impl Sync for IpwisCtx {}
 
 impl IpwisCtx {
     pub fn new(
         ctx: *const TaskCtx,
         state: TaskState,
-        interrupt_handlers: Arc<InterruptHandlerStore>,
+        interrupt_manager: Arc<InterruptManager>,
     ) -> Result<Self> {
         Ok(Self {
             // create a WASI context and put it in a Store; all instances in the store
@@ -42,7 +44,15 @@ impl IpwisCtx {
                 .build(),
             task: ctx,
             state: Arc::new(Mutex::new(state)),
-            store: TaskStore::new(interrupt_handlers),
+            store: TaskStore::new(interrupt_manager.clone()),
+            interrupt_handlers: InterruptHandlerStore::with_manager(interrupt_manager),
         })
+    }
+
+    pub async fn release(&mut self) -> Result<()> {
+        // order: Task -> Interrupt Store
+        self.store.release().await;
+        self.interrupt_handlers.release().await?;
+        Ok(())
     }
 }

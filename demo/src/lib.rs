@@ -1,10 +1,11 @@
 #![allow(clippy::missing_safety_doc)]
 
 use ipis::{futures, tokio::io::AsyncReadExt};
-use ipwis_modules_stream_common::{ExternId, ExternReader};
+use ipwis_common::kernel::resource::ResourceId;
+use ipwis_modules_stream_common::ExternReader;
 
 #[no_mangle]
-pub async unsafe fn read_sum_async(id: ExternId, len: u32) -> u32 {
+pub async unsafe fn read_sum_async(id: ResourceId, len: u32) -> u32 {
     let mut reader = ExternReader::new(id, len);
 
     let mut data = vec![];
@@ -15,6 +16,6 @@ pub async unsafe fn read_sum_async(id: ExternId, len: u32) -> u32 {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn read_sum_sync(id: ExternId, len: u32) -> u32 {
+pub unsafe extern "C" fn read_sum_sync(id: ResourceId, len: u32) -> u32 {
     futures::executor::block_on(read_sum_async(id, len))
 }

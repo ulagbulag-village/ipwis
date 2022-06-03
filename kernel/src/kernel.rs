@@ -1,21 +1,31 @@
 use ipis::{
     core::{account::GuarantorSigned, anyhow::Result},
+    env::Infer,
     tokio,
 };
-use ipwis_kernel_common::task::{TaskCtx, TaskId};
+use ipwis_kernel_common::{
+    resource::ResourceManager,
+    task::{TaskCtx, TaskId},
+};
 
-use crate::{ctx::IpwisCtx, resource::ResourceManager, scheduler::Scheduler};
+use crate::{ctx::IpwisCtx, scheduler::Scheduler};
 
-pub struct Kernel {
+pub struct Kernel<R> {
+    resource_manager: R,
     scheduler: Scheduler,
-    resource_manager: ResourceManager,
 }
 
-impl Kernel {
-    pub async fn boot() -> Result<Self> {
+impl<R> Kernel<R>
+where
+    R: ResourceManager,
+{
+    pub async fn boot() -> Result<Self>
+    where
+        R: for<'a> Infer<'a> + Send,
+    {
         Ok(Self {
+            resource_manager: R::infer().await,
             scheduler: Scheduler::new().await?,
-            resource_manager: Default::default(),
         })
     }
 
@@ -24,10 +34,9 @@ impl Kernel {
         ctx: GuarantorSigned<TaskCtx>,
         program: &[u8],
     ) -> Result<Option<TaskId>> {
-        if self.resource_manager.is_affordable(&ctx).await? {
-            self.scheduler.spawn(ctx, program).await.map(Some)
-        } else {
-            Ok(None)
+        match self.resource_manager.alloc(&ctx.constraints).await? {
+            Some(id) => self.scheduler.spawn(id, ctx, program).await.map(Some),
+            None => Ok(None),
         }
     }
 
@@ -40,12 +49,8 @@ impl Kernel {
         self.spawn(ctx, &program).await
     }
 
-    pub async fn poll(&self, id: TaskId) -> Result<IpwisCtx> {
-        self.scheduler.lock_and_wait_raw(id).await
-    }
-
-    pub async fn lock_and_wait_raw(&self, id: TaskId) -> Result<IpwisCtx> {
-        self.scheduler.lock_and_wait_raw(id).await
+    pub async fn poll(&self, id: TaskId) -> Result<Option<IpwisCtx>> {
+        self.scheduler.poll(id).await
     }
 
     // pub async fn start(self) -> Result<()> {
