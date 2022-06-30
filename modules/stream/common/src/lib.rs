@@ -82,7 +82,7 @@ impl AsyncWrite for ExternWriter {
     }
 
     fn poll_flush(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), tokio::io::Error>> {
-        let () = unsafe {
+        unsafe {
             let opcode = self::io::request::WriterFlush { id: self.id };
             opcode.syscall()?;
         };
@@ -93,7 +93,7 @@ impl AsyncWrite for ExternWriter {
         self: Pin<&mut Self>,
         _: &mut Context<'_>,
     ) -> Poll<Result<(), tokio::io::Error>> {
-        let () = unsafe {
+        unsafe {
             let opcode = self::io::request::WriterShutdown { id: self.id };
             opcode.syscall()?;
         };

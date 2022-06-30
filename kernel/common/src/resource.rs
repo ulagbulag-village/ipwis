@@ -12,7 +12,7 @@ pub trait ResourceManager {
     async fn alloc(&self, constraints: &TaskConstraints) -> Result<Option<ResourceId>>;
 }
 
-#[derive(Clone, Debug, PartialEq, Archive, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Archive, Serialize, Deserialize)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(CheckBytes, Debug, PartialEq))]
 pub struct ResourceConstraints {
