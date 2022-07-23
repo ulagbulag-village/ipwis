@@ -7,8 +7,8 @@ use rkyv::{Archive, Deserialize, Serialize};
 #[derive(Copy, Clone, Debug, Default, Archive, Serialize, Deserialize)]
 #[archive_attr(derive(CheckBytes, Copy, Clone, Debug))]
 pub struct ExternData {
-    pub ptr: u32,
-    pub len: u32,
+    pub ptr: ExternDataRef,
+    pub len: ExternDataRef,
 }
 
 impl ExternData {
@@ -35,15 +35,15 @@ impl ExternData {
 
     pub fn with_raw_parts(ptr: *const u8, len: usize) -> Self {
         Self {
-            ptr: ptr as u32,
-            len: len as u32,
+            ptr: ptr as ExternDataRef,
+            len: len as ExternDataRef,
         }
     }
 
     pub fn with_raw_parts_mut(ptr: *mut u8, len: usize) -> Self {
         Self {
-            ptr: ptr as u32,
-            len: len as u32,
+            ptr: ptr as ExternDataRef,
+            len: len as ExternDataRef,
         }
     }
 
@@ -51,12 +51,12 @@ impl ExternData {
         self.ptr == 0
     }
 
-    pub fn as_ptr(&self) -> u32 {
-        self as *const Self as u32
+    pub fn as_ptr(&self) -> ExternDataRef {
+        self as *const Self as ExternDataRef
     }
 
-    pub fn as_mut_ptr(&mut self) -> u32 {
-        self as *mut Self as u32
+    pub fn as_mut_ptr(&mut self) -> ExternDataRef {
+        self as *mut Self as ExternDataRef
     }
 
     pub unsafe fn into_slice<'a, T>(self) -> &'a [T] {

@@ -8,7 +8,11 @@ use ipis::tokio::{
     self,
     io::{AsyncRead, AsyncWrite, ReadBuf},
 };
-use ipwis_kernel_common::{data::ExternData, interrupt::InterruptId, resource::ResourceId};
+use ipwis_kernel_common::{
+    data::{ExternData, ExternDataRef},
+    interrupt::InterruptId,
+    resource::ResourceId,
+};
 use rkyv::{
     de::deserializers::SharedDeserializeMap, validation::validators::DefaultValidator, Archive,
     Deserialize, Serialize,
@@ -17,11 +21,11 @@ use rkyv::{
 #[repr(C)]
 pub struct ExternReader {
     id: ResourceId,
-    len: u32,
+    len: ExternDataRef,
 }
 
 impl ExternReader {
-    pub fn new(id: ResourceId, len: u32) -> Self {
+    pub fn new(id: ResourceId, len: ExternDataRef) -> Self {
         Self { id, len }
     }
 }
@@ -206,7 +210,7 @@ pub mod io {
         #[derive(Archive, Serialize, Deserialize)]
         #[archive_attr(derive(CheckBytes))]
         pub struct ReaderNext {
-            pub len: u32,
+            pub len: ExternDataRef,
         }
 
         impl ::ipis::core::signed::IsSigned for ReaderNext {}
@@ -214,7 +218,7 @@ pub mod io {
         #[derive(Archive, Serialize, Deserialize)]
         #[archive_attr(derive(CheckBytes))]
         pub struct WriterNext {
-            pub len: u32,
+            pub len: ExternDataRef,
         }
 
         impl ::ipis::core::signed::IsSigned for WriterNext {}

@@ -1,5 +1,5 @@
 [package]
-name = "ipwis-demo"
+name = "ipwis-kernel-api"
 version = "0.1.0"
 edition = "2021"
 
@@ -13,9 +13,16 @@ repository = "https://github.com/ulagbulag-village/ipwis"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[dependencies]
-ipis = { git = "https://github.com/ulagbulag-village/ipis", features = [
-    "derive",
-] }
-ipwis-common = { path = "../common" }
-ipwis-modules-stream-common = { path = "../modules/stream/common" }
+[lib]
+name = "ipwis_kernel_api"
+crate-type = ["cdylib", "rlib"]
+
+[target.'cfg(not(target_os = "wasi"))'.dependencies]
+ipis = { git = "https://github.com/ulagbulag-village/ipis" }
+ipwis-kernel-common = { path = "../common" }
+
+wasmtime = { version = "0.38", features = ["cache"] }
+wasmtime-wasi = "0.38"
+
+[build-dependencies]
+ipwis-kernel-builder = { path = "../builder" }

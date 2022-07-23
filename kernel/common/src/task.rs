@@ -7,21 +7,21 @@ use std::{collections::HashMap, sync::Arc};
 
 use bytecheck::CheckBytes;
 use ipis::{
-    class::metadata::ClassMetadata,
+    class::{metadata::ClassMetadata, Class},
     core::{
         account::{GuaranteeSigned, GuarantorSigned},
         anyhow::Result,
         signed::IsSigned,
         value::{chrono::DateTime, text::Text},
     },
-    object::data::ObjectData,
+    object::{data::ObjectData, IntoObjectData},
     path::Path,
     tokio::{self, sync::Mutex},
 };
 use rkyv::{Archive, Deserialize, Serialize};
 
 use crate::{
-    data::ExternData,
+    data::{ExternData, ExternDataRef},
     protection::ProtectionMode,
     resource::{ResourceConstraints, ResourceId},
 };
@@ -40,16 +40,10 @@ impl<R> Future for Entry<R> {
 }
 
 pub struct Task<R> {
-    pub ctx: *const TaskCtx,
+    pub ctx: TaskPtr,
     pub state: Arc<Mutex<TaskState>>,
     pub handler: tokio::task::JoinHandle<R>,
 }
-
-/// # Safety
-///
-/// It's thread-safe as the context is read-only and is owned by Entry.
-unsafe impl<R> Send for Task<R> {}
-unsafe impl<R> Sync for Task<R> {}
 
 impl<R> Future for Task<R> {
     type Output = Result<R, tokio::task::JoinError>;
@@ -66,13 +60,29 @@ impl<R> Future for Task<R> {
 #[archive_attr(derive(Debug, PartialEq))]
 pub struct TaskCtx {
     pub constraints: TaskConstraints,
-    pub program: GuaranteeSigned<Path>,
+    pub program: Option<GuaranteeSigned<Path>>,
     #[omit_bounds]
     pub reserved: HashMap<String, TaskCtx>,
     #[omit_bounds]
     pub children: HashMap<String, TaskCtx>,
     #[omit_bounds]
     pub exceptions: Vec<TaskCtx>,
+}
+
+impl TaskCtx {
+    pub fn new_sandbox() -> Self {
+        Self {
+            constraints: TaskConstraints {
+                inputs: ().__into_object_data(),
+                outputs: <() as Class>::__class_metadata(),
+                resources: ResourceConstraints::UNLIMITED,
+            },
+            program: None,
+            reserved: Default::default(),
+            children: Default::default(),
+            exceptions: Default::default(),
+        }
+    }
 }
 
 impl IsSigned for TaskCtx {}
@@ -120,6 +130,29 @@ where
     }
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct TaskPtr(*const TaskCtx);
+
+/// # Safety
+///
+/// It's thread-safe as the task is read-only and is owned by Entry.
+unsafe impl Send for TaskPtr {}
+unsafe impl Sync for TaskPtr {}
+
+impl ::core::ops::Deref for TaskPtr {
+    type Target = TaskCtx;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*self.0 }
+    }
+}
+
+impl TaskPtr {
+    pub const fn new(ctx: &TaskCtx) -> Self {
+        Self(ctx)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Archive, Serialize, Deserialize)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(CheckBytes, Debug, PartialEq))]
@@ -160,7 +193,7 @@ impl IsSigned for TaskPoll {}
 #[archive(compare(PartialEq, PartialOrd))]
 #[archive_attr(derive(CheckBytes, Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash))]
 #[repr(C)]
-pub struct TaskId(pub TaskIdInner);
+pub struct TaskId(pub ExternDataRef);
 
 impl IsSigned for TaskId {}
 
@@ -169,5 +202,3 @@ impl ::core::fmt::LowerHex for TaskId {
         ::core::fmt::LowerHex::fmt(&self.0, f)
     }
 }
-
-pub type TaskIdInner = u32;

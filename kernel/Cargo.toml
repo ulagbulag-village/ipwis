@@ -17,7 +17,5 @@ repository = "https://github.com/ulagbulag-village/ipwis"
 ipis = { git = "https://github.com/ulagbulag-village/ipis", features = [
     "derive",
 ] }
+ipwis-kernel-api = { path = "./api" }
 ipwis-kernel-common = { path = "./common" }
-
-wasmtime = { version = "0.37", features = ["cache"] }
-wasmtime-wasi = "0.37"

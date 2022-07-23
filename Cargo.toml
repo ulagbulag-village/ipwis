@@ -5,6 +5,8 @@ members = [
     "common",
     "demo",
     "kernel",
+    "kernel/api",
+    "kernel/builder",
     "kernel/common",
     "modules/stream/api",
     "modules/stream/common",

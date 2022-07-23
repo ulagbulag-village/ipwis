@@ -1,5 +1,10 @@
-use ipis::{core::anyhow::Result, futures, rkyv::AlignedVec};
-use ipwis_kernel_common::{data::ExternDataRef, interrupt::InterruptId, memory::Memory};
+use ipis::{core::anyhow::Result, log::warn, rkyv::AlignedVec};
+use ipwis_kernel_common::{
+    data::ExternDataRef,
+    extrinsics::{SYSCALL_ERR_FATAL, SYSCALL_ERR_NORMAL, SYSCALL_OK},
+    interrupt::InterruptId,
+    memory::Memory,
+};
 
 use crate::{
     ctx::{IpwisCaller, IpwisLinker},
@@ -7,20 +12,32 @@ use crate::{
 };
 
 pub fn register(linker: &mut IpwisLinker) -> Result<()> {
-    linker.func_wrap("ipwis_kernel", "syscall", syscall)?;
+    linker.func_wrap4_async(
+        "ipwis_kernel",
+        "syscall",
+        |caller, handler, inputs, outputs, errors| {
+            Box::new(syscall(caller, handler, inputs, outputs, errors))
+        },
+    )?;
     Ok(())
 }
 
-fn syscall(
-    mut caller: IpwisCaller,
+async fn syscall(
+    mut caller: IpwisCaller<'_>,
     handler: ExternDataRef,
     inputs: ExternDataRef,
     outputs: ExternDataRef,
     errors: ExternDataRef,
-) {
+) -> ExternDataRef {
     let mut memory = unsafe {
         // allow interior mutability
-        IpwisMemory::from_caller(::core::mem::transmute::<_, &mut IpwisCaller>(&mut caller))
+        match IpwisMemory::try_new(::core::mem::transmute::<_, &mut IpwisCaller>(&mut caller)) {
+            Ok(memory) => memory,
+            Err(error) => {
+                warn!("{}", error);
+                return SYSCALL_ERR_FATAL;
+            }
+        }
     };
 
     async unsafe fn try_handle<'a>(
@@ -30,11 +47,11 @@ fn syscall(
         inputs: ExternDataRef,
     ) -> Result<AlignedVec> {
         let handler = {
-            let data = ::core::mem::transmute(memory.load(handler)); // ignore `memory` lifetime
+            let data = ::core::mem::transmute(memory.load(handler)?); // ignore `memory` lifetime
             InterruptId(::core::str::from_utf8(data)?)
         };
         let inputs: &[u8] = {
-            ::core::mem::transmute(memory.load(inputs)) // ignore `memory` lifetime
+            ::core::mem::transmute(memory.load(inputs)?) // ignore `memory` lifetime
         };
 
         caller
@@ -45,9 +62,21 @@ fn syscall(
     }
 
     unsafe {
-        match futures::executor::block_on(try_handle(&mut caller, &mut memory, handler, inputs)) {
-            Ok(buf) => memory.copy(&buf, outputs),
-            Err(error) => memory.copy_error(error, errors),
+        match try_handle(&mut caller, &mut memory, handler, inputs).await {
+            Ok(buf) => match memory.dump_to(&buf, outputs).await {
+                Ok(()) => SYSCALL_OK,
+                Err(error) => {
+                    warn!("{}", error);
+                    SYSCALL_ERR_FATAL
+                }
+            },
+            Err(error) => match memory.dump_error_to(error, errors).await {
+                Ok(()) => SYSCALL_ERR_NORMAL,
+                Err(error) => {
+                    warn!("{}", error);
+                    SYSCALL_ERR_FATAL
+                }
+            },
         }
     }
 }

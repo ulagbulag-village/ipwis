@@ -18,5 +18,6 @@ ipis = { git = "https://github.com/ulagbulag-village/ipis", features = [
     "derive",
 ] }
 ipiis-api = { git = "https://github.com/ulagbulag-village/ipiis" }
+ipsis-common = { git = "https://github.com/ulagbulag-village/ipsis" }
 ipwis-common = { path = "../common" }
 ipwis-kernel = { path = "../kernel" }

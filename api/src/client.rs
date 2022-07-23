@@ -3,12 +3,13 @@ use ipis::{
     async_trait::async_trait,
     core::{
         account::{AccountRef, GuaranteeSigned, GuarantorSigned},
-        anyhow::Result,
+        anyhow::{bail, Result},
         value::text::Text,
     },
     env::Infer,
     futures::TryFutureExt,
 };
+use ipsis_common::Ipsis;
 use ipwis_common::Ipwis;
 use ipwis_kernel::{
     common::task::{TaskCtx, TaskId, TaskPoll},
@@ -19,7 +20,7 @@ pub type IpwisClient = IpwisClientInner<::ipiis_api::client::IpiisClient>;
 
 pub struct IpwisClientInner<IpiisClient> {
     pub ipiis: IpiisClient,
-    kernel: Kernel,
+    kernel: Kernel<super::resource::DummyResourceManager>,
 }
 
 impl<IpiisClient> AsRef<::ipiis_api::client::IpiisClient> for IpwisClientInner<IpiisClient>
@@ -77,16 +78,25 @@ impl<IpiisClient> IpwisClientInner<IpiisClient> {
 #[async_trait]
 impl<IpiisClient> Ipwis for IpwisClientInner<IpiisClient>
 where
-    IpiisClient: Ipiis + Send + Sync,
+    IpiisClient: Ipiis + Ipsis + Send + Sync,
 {
     async fn task_spawn(
         &self,
         ctx: GuaranteeSigned<TaskCtx>,
     ) -> Result<Option<GuaranteeSigned<TaskId>>> {
-        let guarantee = ctx.guarantee.account;
+        let ctx = self.ipiis.sign_as_guarantor(ctx)?;
+        let guarantee = ctx.guarantor.account;
 
-        self.task_spawn_unchecked(Some(guarantee), ctx.data.data)
-            .await
+        match &ctx.program {
+            Some(program) => {
+                let program: Vec<u8> = self.ipiis.get(program).await?;
+                match self.kernel.spawn(ctx, &program).await? {
+                    Some(id) => self.ipiis.sign(guarantee, id).map(Some),
+                    None => Ok(None),
+                }
+            }
+            None => bail!("Empty program"),
+        }
     }
 
     async fn task_spawn_unchecked(
@@ -94,7 +104,10 @@ where
         guarantee: Option<AccountRef>,
         ctx: TaskCtx,
     ) -> Result<Option<GuaranteeSigned<TaskId>>> {
-        todo!()
+        let guarantee = guarantee.unwrap_or_else(|| self.ipiis.account_me().account_ref());
+
+        let ctx = self.ipiis.sign(guarantee, ctx)?;
+        self.task_spawn(ctx).await
     }
 
     async fn task_poll(&self, id: GuarantorSigned<TaskId>) -> Result<GuaranteeSigned<TaskPoll>> {

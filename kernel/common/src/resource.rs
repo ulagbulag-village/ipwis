@@ -5,7 +5,7 @@ use ipis::{
 };
 use rkyv::{Archive, Deserialize, Serialize};
 
-use crate::task::TaskConstraints;
+use crate::{task::TaskConstraints, data::ExternDataRef};
 
 #[async_trait]
 pub trait ResourceManager {
@@ -19,13 +19,19 @@ pub struct ResourceConstraints {
     pub due_date: DateTime,
 }
 
+impl ResourceConstraints {
+    pub const UNLIMITED: Self = ResourceConstraints {
+        due_date: DateTime::MAX_DATETIME,
+    };
+}
+
 #[derive(
     Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Archive, Serialize, Deserialize,
 )]
 #[archive(compare(PartialEq, PartialOrd))]
 #[archive_attr(derive(CheckBytes, Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash))]
 #[repr(C)]
-pub struct ResourceId(pub ResourceIdInner);
+pub struct ResourceId(pub ExternDataRef);
 
 impl IsSigned for ResourceId {}
 
@@ -34,5 +40,3 @@ impl ::core::fmt::LowerHex for ResourceId {
         ::core::fmt::LowerHex::fmt(&self.0, f)
     }
 }
-
-pub type ResourceIdInner = u32;

@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use ipis::core::{account::GuarantorSigned, anyhow::Result};
+use ipwis_kernel_api::wasmtime::{Config, Engine, Module};
 use ipwis_kernel_common::{
     resource::ResourceId,
     task::{TaskCtx, TaskId},
 };
-use wasmtime::{Config, Engine, Module};
 
 use crate::{
     ctx::{IpwisCtx, IpwisLinker},
@@ -24,14 +24,14 @@ impl Scheduler {
         let engine = Engine::new(Config::new().async_support(true))?;
 
         let mut linker = IpwisLinker::new(&engine);
-        ::wasmtime_wasi::add_to_linker(&mut linker, |ctx| &mut ctx.wasi)?;
+        ::ipwis_kernel_api::wasmtime_wasi::add_to_linker(&mut linker, |ctx| &mut ctx.wasi)?;
 
         // register extrinsics
         crate::extrinsics::register(&mut linker)?;
 
         // create the other modules
         let interrupt_manager: Arc<InterruptManager> = Default::default();
-        let tasks = TaskStore::new(interrupt_manager);
+        let tasks = TaskStore::try_new(&engine, interrupt_manager)?;
 
         Ok(Self { linker, tasks })
     }

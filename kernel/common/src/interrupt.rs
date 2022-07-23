@@ -107,5 +107,3 @@ impl InterruptId {
         Ok(Vec::from_raw_parts(ptr, len, len))
     }
 }
-
-pub type InterruptIdInner = u32;

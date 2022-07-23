@@ -108,7 +108,7 @@ impl StreamHandler {
         M: Memory,
     {
         let reader = self.get_reader(&req.id)?;
-        let mut buf = memory.load_mut_raw(&req.buf);
+        let mut buf = memory.load_mut_raw(req.buf)?;
 
         Ok(io::response::ReaderNext {
             len: reader.read_buf(&mut buf).await?.try_into()?,
@@ -145,7 +145,7 @@ impl StreamHandler {
         M: Memory,
     {
         let writer = self.get_writer(&req.id)?;
-        let mut buf = memory.load_raw(&req.buf);
+        let mut buf = memory.load_raw(req.buf)?;
 
         Ok(io::response::WriterNext {
             len: writer.write_buf(&mut buf).await?.try_into()?,

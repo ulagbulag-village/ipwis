@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use ipis::{core::anyhow::Result, tokio::sync::Mutex};
-use ipwis_kernel_common::task::{TaskCtx, TaskState};
-use wasmtime::{Caller, Linker, Store};
-use wasmtime_wasi::{WasiCtx, WasiCtxBuilder};
+use ipwis_kernel_api::wasmtime::{Caller, Engine, Linker, Store};
+use ipwis_kernel_api::wasmtime_wasi::{WasiCtx, WasiCtxBuilder};
+use ipwis_kernel_common::task::{TaskPtr, TaskState};
 
 use crate::{
     interrupt::{InterruptHandlerStore, InterruptManager},
@@ -16,21 +16,16 @@ pub type IpwisStore = Store<IpwisCtx>;
 
 pub struct IpwisCtx {
     pub wasi: WasiCtx,
-    pub task: *const TaskCtx,
+    pub task: TaskPtr,
     pub state: Arc<Mutex<TaskState>>,
     pub store: TaskStore<Task>,
     pub interrupt_handlers: InterruptHandlerStore,
 }
 
-/// # Safety
-///
-/// It's thread-safe as the task is read-only and is owned by Entry.
-unsafe impl Send for IpwisCtx {}
-unsafe impl Sync for IpwisCtx {}
-
 impl IpwisCtx {
     pub fn new(
-        ctx: *const TaskCtx,
+        engine: &Engine,
+        ctx: TaskPtr,
         state: TaskState,
         interrupt_manager: Arc<InterruptManager>,
     ) -> Result<Self> {
@@ -44,7 +39,7 @@ impl IpwisCtx {
                 .build(),
             task: ctx,
             state: Arc::new(Mutex::new(state)),
-            store: TaskStore::new(interrupt_manager.clone()),
+            store: TaskStore::try_new(engine, interrupt_manager.clone())?,
             interrupt_handlers: InterruptHandlerStore::with_manager(interrupt_manager),
         })
     }

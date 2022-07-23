@@ -5,47 +5,48 @@ use ipis::{
     core::{
         account::GuarantorSigned,
         anyhow::{bail, Result},
-        signed::IsSigned,
         value::chrono::DateTime,
     },
     tokio::{self, sync::Mutex},
 };
+use ipwis_kernel_api::wasmtime::{Engine, Module, Trap};
 use ipwis_kernel_common::{
+    data::ExternDataRef,
     extrinsics::InterruptArgs,
-    memory::Memory,
+    modules::MODULE_NAME_API,
     protection::ProtectionMode,
     resource::ResourceId,
-    task::{TaskCtx, TaskId, TaskState},
+    task::{TaskCtx, TaskId, TaskPtr, TaskState},
 };
-use wasmtime::{Module, Trap};
 
 use crate::{
     ctx::{IpwisCtx, IpwisLinker, IpwisStore},
     interrupt::InterruptManager,
-    memory::IpwisMemoryInner,
 };
 
 pub struct TaskStore<T> {
+    api: Module,
     seed: TaskIdSeed,
     map: Mutex<BTreeMap<TaskId, T>>,
     interrupt_manager: Arc<InterruptManager>,
 }
 
 impl<T> TaskStore<T> {
-    pub fn new(interrupt_manager: Arc<InterruptManager>) -> Self {
-        Self {
+    pub fn try_new(engine: &Engine, interrupt_manager: Arc<InterruptManager>) -> Result<Self> {
+        Ok(Self {
+            api: ::ipwis_kernel_api::load_module(engine)?,
             seed: Default::default(),
             map: Default::default(),
             interrupt_manager,
-        }
+        })
     }
 
     async fn spawn_inner<F>(
         &self,
-        linker: &IpwisLinker,
+        linker: &mut IpwisLinker,
         module: &Module,
         resource_id: ResourceId,
-        ctx: *const TaskCtx,
+        ctx: TaskPtr,
         f: F,
     ) -> Result<TaskId>
     where
@@ -68,24 +69,17 @@ impl<T> TaskStore<T> {
         // create a new store
         let mut store = IpwisStore::new(
             linker.engine(),
-            IpwisCtx::new(ctx, state, self.interrupt_manager.clone())?,
+            IpwisCtx::new(linker.engine(), ctx, state, self.interrupt_manager.clone())?,
         );
         let ctx = store.data().task;
         let state = store.data().state.clone();
 
+        // register API module
+        let api = linker.instantiate_async(&mut store, &self.api).await?;
+        linker.instance(&mut store, MODULE_NAME_API, api)?;
+
         // create an instance with given module and store
         let instance = linker.instantiate_async(&mut store, module).await?;
-
-        // copy inputs into instance
-        let inputs = unsafe {
-            let inputs = (*ctx).constraints.inputs.to_bytes()?;
-
-            let mut memory = IpwisMemoryInner::from_instance(&mut store, &instance);
-            memory.dump(&inputs)
-        };
-        {
-            state.lock().await.inputs = inputs;
-        }
 
         // find main function
         let func = instance
@@ -94,6 +88,8 @@ impl<T> TaskStore<T> {
             .typed::<InterruptArgs, (), _>(&mut store)
             .expect("failed to parse `_ipwis_call` func");
 
+        dbg!(1);
+
         // external call
         // note: the inner schedule is controlled by `wasmtime` engine, not by this scheduler
         let handler = tokio::spawn(async move {
@@ -101,6 +97,8 @@ impl<T> TaskStore<T> {
                 .await
                 .map(|()| store)
         });
+
+        dbg!(1);
 
         // instantiate and store the task
         let task = f(Task {
@@ -111,6 +109,8 @@ impl<T> TaskStore<T> {
         {
             self.map.lock().await.insert(task_id, task);
         }
+
+        dbg!(1);
 
         Ok(task_id)
     }
@@ -127,10 +127,10 @@ impl TaskStore<Entry> {
         let ctx = Box::new(ctx);
 
         self.spawn_inner(
-            linker,
+            &mut linker.clone(),
             module,
             id,
-            (&ctx.data.data.data) as *const TaskCtx,
+            TaskPtr::new(&ctx),
             |task| Entry { ctx, task },
         )
         .await
@@ -153,10 +153,10 @@ impl TaskStore<Entry> {
 impl TaskStore<Task> {
     pub async fn spawn_task(
         &self,
-        linker: &IpwisLinker,
+        linker: &mut IpwisLinker,
         module: &Module,
         id: ResourceId,
-        ctx: *const TaskCtx,
+        ctx: TaskPtr,
     ) -> Result<TaskId> {
         self.spawn_inner(linker, module, id, ctx, |task| task).await
     }
@@ -180,7 +180,7 @@ impl Default for TaskIdSeed {
 }
 
 impl TaskIdSeed {
-    const DROPPED: u32 = 0;
+    const DROPPED: ExternDataRef = 0;
 
     pub fn generate(&self) -> Result<TaskId> {
         let id = self.0.fetch_add(1, Ordering::SeqCst);
