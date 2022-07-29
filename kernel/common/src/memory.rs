@@ -1,4 +1,15 @@
-use ipis::{async_trait::async_trait, core::anyhow::Result};
+use ipis::{
+    async_trait::async_trait,
+    bytecheck::CheckBytes,
+    core::{
+        anyhow::Result,
+        signed::{IsSigned, Serializer},
+    },
+    rkyv::{
+        de::deserializers::SharedDeserializeMap, validation::validators::DefaultValidator, Archive,
+        Deserialize, Serialize,
+    },
+};
 
 use crate::data::{ExternData, ExternDataRef};
 
@@ -78,6 +89,25 @@ pub trait Memory: Send + Sync {
 
     async fn dump(&mut self, data: &[u8]) -> Result<ExternData>;
 
+    async fn dump_doubled(&mut self, data: &[u8]) -> Result<ExternData> {
+        let data = self.dump(data).await?.as_bytes();
+        self.dump(&data).await
+    }
+
+    async fn dump_doubled_null(&mut self) -> Result<ExternData> {
+        let data = ExternData::default().as_bytes();
+        self.dump(&data).await
+    }
+
+    async fn dump_doubled_object<T>(&mut self, data: &T) -> Result<ExternData>
+    where
+        T: Archive + Serialize<Serializer> + IsSigned + Clone + Send + Sync,
+        <T as Archive>::Archived:
+            for<'a> CheckBytes<DefaultValidator<'a>> + Deserialize<T, SharedDeserializeMap>,
+    {
+        self.dump_doubled(&data.to_bytes()?).await
+    }
+
     async fn dump_to(&mut self, src: &[u8], dst: ExternDataRef) -> Result<()> {
         // safety: mutability makes this block thread-safe
         let dst = unsafe { ::core::mem::transmute(self.host_ref_mut::<ExternData>(dst)?) };
@@ -105,6 +135,6 @@ pub trait Memory: Send + Sync {
     }
 
     fn set_len_raw(&mut self, len: ExternDataRef, dst: &mut ExternData) {
-        (*dst).len = len
+        dst.len = len
     }
 }

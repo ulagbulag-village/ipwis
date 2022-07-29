@@ -46,7 +46,9 @@ impl Scheduler {
         let module = Module::from_binary(self.linker.engine(), program)?;
 
         // spawn
-        self.tasks.spawn_entry(&self.linker, &module, id, ctx).await
+        self.tasks
+            .spawn_entry(&self.linker, &module, id, ctx.into())
+            .await
     }
 
     pub async fn poll(&self, id: TaskId) -> Result<Option<IpwisCtx>> {

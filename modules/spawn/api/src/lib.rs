@@ -1,6 +1,6 @@
 #![allow(clippy::missing_safety_doc)]
 
-pub extern crate ipwis_modules_stream_common as common;
+// pub extern crate ipwis_modules_spawn_common as common;
 
 use core::pin::Pin;
 
@@ -19,7 +19,7 @@ use ipwis_kernel_common::{
         memory::Memory,
         resource::{ResourceId,ResourceStore},
 };
-use ipwis_modules_stream_common::{io, ExternReader, ExternWriter};
+use ipwis_modules_spawn_common::{io, ExternReader, ExternWriter};
 
 #[derive(Copy, Clone, Debug, Default)]
 pub struct StreamModule;

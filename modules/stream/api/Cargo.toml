@@ -17,5 +17,5 @@ repository = "https://github.com/ulagbulag-village/ipwis"
 ipis = { git = "https://github.com/ulagbulag-village/ipis", features = [
     "derive",
 ] }
-ipwis-kernel = { path = "../../../kernel" }
+ipwis-kernel-common = { path = "../../../kernel/common" }
 ipwis-modules-stream-common = { path = "../common" }

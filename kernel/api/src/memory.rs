@@ -6,7 +6,7 @@ use ipwis_kernel_common::{
     data::{ExternData, ExternDataRef},
     memory::Memory,
 };
-use wasmtime::{AsContext, AsContextMut, Caller, Trap};
+use wasmtime::{AsContext, AsContextMut, Caller, Instance, Trap};
 
 use crate::intrinsics::memory::{self, IpwisAlloc, IpwisAllocZeroed, IpwisDealloc, IpwisRealloc};
 
@@ -21,14 +21,30 @@ pub struct IpwisMemoryInner<S> {
 }
 
 impl<'a, 'c, T> IpwisMemoryInner<&'c mut Caller<'a, T>> {
-    pub fn try_new(caller: &'c mut Caller<'a, T>) -> Result<Self> {
+    pub fn with_caller(caller: &'c mut Caller<'a, T>) -> Result<Self> {
         Ok(Self {
-            memory: memory::__builtin_memory(caller)?,
-            alloc: memory::__alloc(caller)?,
-            alloc_zeroed: memory::__alloc_zeroed(caller)?,
-            dealloc: memory::__dealloc(caller)?,
-            realloc: memory::__realloc(caller)?,
+            memory: memory::caller::__builtin_memory(caller)?,
+            alloc: memory::caller::__alloc(caller)?,
+            alloc_zeroed: memory::caller::__alloc_zeroed(caller)?,
+            dealloc: memory::caller::__dealloc(caller)?,
+            realloc: memory::caller::__realloc(caller)?,
             store: caller,
+        })
+    }
+}
+
+impl<S> IpwisMemoryInner<S>
+where
+    S: AsContextMut,
+{
+    pub fn with_instance(instance: &Instance, mut store: S) -> Result<Self> {
+        Ok(Self {
+            memory: memory::instance::__builtin_memory(instance, &mut store)?,
+            alloc: memory::instance::__alloc(instance, &mut store)?,
+            alloc_zeroed: memory::instance::__alloc_zeroed(instance, &mut store)?,
+            dealloc: memory::instance::__dealloc(instance, &mut store)?,
+            realloc: memory::instance::__realloc(instance, &mut store)?,
+            store,
         })
     }
 }
@@ -147,7 +163,12 @@ where
 #[cfg(test)]
 mod tests {
     use ipis::tokio;
-    use ipwis_kernel_common::{data::ExternData, memory::Memory, modules::MODULE_NAME_API};
+    use ipwis_kernel_common::{
+        data::{ExternData, ExternDataRef},
+        extrinsics::{InterruptArgs, SYSCALL_OK},
+        memory::Memory,
+        modules::{FUNC_NAME_SYSCALL, MODULE_NAME_API, MODULE_NAME_COMMON},
+    };
     use wasmtime::{Caller, Config, Engine, Linker, Store, TypedFunc};
     use wasmtime_wasi::{WasiCtx, WasiCtxBuilder};
 
@@ -160,8 +181,6 @@ mod tests {
         let mut linker = Linker::<WasiCtx>::new(&engine);
         ::wasmtime_wasi::add_to_linker(&mut linker, |s| s).unwrap();
 
-        // linker.func_wrap("ipwis_module_stream", "next", ipiis_reader__next)?;
-
         // Create a WASI context and put it in a Store; all instances in the store
         // share this context. `WasiCtxBuilder` provides a number of ways to
         // configure what the target program will have access to.
@@ -173,9 +192,9 @@ mod tests {
         let mut store = Store::new(&engine, wasi);
 
         // Define our test program
-        async fn test(mut caller: Caller<'_, WasiCtx>) {
+        async fn test(mut caller: Caller<'_, WasiCtx>) -> ExternDataRef {
             // instantiate the memory module
-            let mut memory = IpwisMemoryInner::try_new(&mut caller).unwrap();
+            let mut memory = IpwisMemoryInner::with_caller(&mut caller).unwrap();
 
             // get the memory size
             let size_old = memory.size();
@@ -204,13 +223,21 @@ mod tests {
 
             // test the arrays are deallocated
             assert!(size_new - size_old <= (step * num_iter) as usize);
+
+            SYSCALL_OK
         }
 
         // Register our test program
         linker
-            .func_wrap0_async("__ipwis_custom", "_ipwis_test", |caller| {
-                Box::new(test(caller))
-            })
+            .func_wrap4_async(
+                MODULE_NAME_COMMON,
+                FUNC_NAME_SYSCALL,
+                |caller,
+                 _handler: ExternDataRef,
+                 _inputs: ExternDataRef,
+                 _outputs: ExternDataRef,
+                 _errors: ExternDataRef| Box::new(test(caller)),
+            )
             .unwrap();
 
         // Register API module.
@@ -221,11 +248,12 @@ mod tests {
             .unwrap();
 
         // Run our test program
-        let func: TypedFunc<(), ()> = instance
-            .get_func(&mut store, "__ipwis_test")
+        let func: TypedFunc<InterruptArgs, ExternDataRef> = instance
+            .get_func(&mut store, FUNC_NAME_SYSCALL)
             .unwrap()
             .typed(&mut store)
             .unwrap();
-        func.call_async(&mut store, ()).await.unwrap();
+        let output = func.call_async(&mut store, (0, 0, 0, 0)).await.unwrap();
+        assert_eq!(output, SYSCALL_OK);
     }
 }

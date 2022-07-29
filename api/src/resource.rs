@@ -1,9 +1,8 @@
 use ipis::{async_trait::async_trait, core::anyhow::Result, env::Infer, tokio::sync::Mutex};
 use ipwis_common::kernel::{
-    resource::{ResourceId, ResourceManager},
+    resource::{ResourceId, ResourceManager, ResourceStore},
     task::TaskConstraints,
 };
-use ipwis_kernel::resource::ResourceStore;
 
 #[derive(Default)]
 pub struct DummyResourceManager {

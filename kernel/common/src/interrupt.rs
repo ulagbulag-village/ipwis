@@ -91,7 +91,7 @@ impl InterruptId {
         let mut errors = ExternData::default();
 
         // execute syscall
-        crate::extrinsics::syscall(
+        crate::extrinsics::__ipwis_syscall(
             handler.as_ptr(),
             inputs.as_ptr(),
             outputs.as_mut_ptr(),

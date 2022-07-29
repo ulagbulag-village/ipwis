@@ -59,6 +59,11 @@ impl ExternData {
         self as *mut Self as ExternDataRef
     }
 
+    pub fn as_bytes(self) -> [u8; ::core::mem::size_of::<ExternDataRef>() * 2] {
+        // note: wasm uses little-endian
+        unsafe { ::core::mem::transmute([self.ptr.to_le_bytes(), self.len.to_le_bytes()]) }
+    }
+
     pub unsafe fn into_slice<'a, T>(self) -> &'a [T] {
         self.try_into_slice().unwrap_or_default()
     }

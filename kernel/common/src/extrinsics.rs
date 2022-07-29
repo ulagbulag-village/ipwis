@@ -1,13 +1,13 @@
 use crate::data::ExternDataRef;
 
-#[link(wasm_import_module = "ipwis_kernel")]
+#[link(wasm_import_module = "__ipwis_kernel")]
 extern "C" {
-    pub fn syscall(
+    pub fn __ipwis_syscall(
         handler: ExternDataRef,
         inputs: ExternDataRef,
         outputs: ExternDataRef,
         errors: ExternDataRef,
-    );
+    ) -> ExternDataRef;
 }
 
 pub type InterruptFn = unsafe extern "C" fn(

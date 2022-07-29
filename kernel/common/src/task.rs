@@ -27,7 +27,7 @@ use crate::{
 };
 
 pub struct Entry<R> {
-    pub ctx: Box<GuarantorSigned<TaskCtx>>,
+    pub ctx: Arc<GuarantorSigned<TaskCtx>>,
     pub task: Task<R>,
 }
 
@@ -40,7 +40,7 @@ impl<R> Future for Entry<R> {
 }
 
 pub struct Task<R> {
-    pub ctx: TaskPtr,
+    pub ctx: Arc<GuarantorSigned<TaskCtx>>,
     pub state: Arc<Mutex<TaskState>>,
     pub handler: tokio::task::JoinHandle<R>,
 }
@@ -127,29 +127,6 @@ where
                 inner: ::bytecheck::ErrorBox::new(e),
             })?;
         Ok(&*value)
-    }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct TaskPtr(*const TaskCtx);
-
-/// # Safety
-///
-/// It's thread-safe as the task is read-only and is owned by Entry.
-unsafe impl Send for TaskPtr {}
-unsafe impl Sync for TaskPtr {}
-
-impl ::core::ops::Deref for TaskPtr {
-    type Target = TaskCtx;
-
-    fn deref(&self) -> &Self::Target {
-        unsafe { &*self.0 }
-    }
-}
-
-impl TaskPtr {
-    pub const fn new(ctx: &TaskCtx) -> Self {
-        Self(ctx)
     }
 }
 

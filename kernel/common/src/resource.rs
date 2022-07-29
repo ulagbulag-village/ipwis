@@ -1,3 +1,5 @@
+use std::{collections::HashMap, sync::atomic::{AtomicU32, Ordering}};
+
 use bytecheck::CheckBytes;
 use ipis::{
     async_trait::async_trait,
@@ -5,7 +7,7 @@ use ipis::{
 };
 use rkyv::{Archive, Deserialize, Serialize};
 
-use crate::{task::TaskConstraints, data::ExternDataRef};
+use crate::{data::ExternDataRef, task::TaskConstraints};
 
 #[async_trait]
 pub trait ResourceManager {
@@ -23,6 +25,50 @@ impl ResourceConstraints {
     pub const UNLIMITED: Self = ResourceConstraints {
         due_date: DateTime::MAX_DATETIME,
     };
+}
+
+
+#[derive(Debug)]
+pub struct ResourceStore<R> {
+    seed: ResourceIdSeed,
+    pub map: HashMap<ResourceId, R>,
+}
+
+impl<R> ResourceStore<R> {
+    pub fn insert<F>(&mut self, f: F) -> Result<ResourceId>
+    where
+        F: FnOnce(ResourceId) -> Result<R>,
+    {
+        let id = self.seed.generate();
+
+        self.map.insert(id, f(id)?);
+
+        Ok(id)
+    }
+}
+
+impl<R> Default for ResourceStore<R> {
+    fn default() -> Self {
+        Self {
+            seed: Default::default(),
+            map: Default::default(),
+        }
+    }
+}
+
+#[derive(Debug)]
+struct ResourceIdSeed(AtomicU32);
+
+impl Default for ResourceIdSeed {
+    fn default() -> Self {
+        Self(1.into())
+    }
+}
+
+impl ResourceIdSeed {
+    pub fn generate(&self) -> ResourceId {
+        ResourceId(self.0.fetch_add(1, Ordering::SeqCst))
+    }
 }
 
 #[derive(

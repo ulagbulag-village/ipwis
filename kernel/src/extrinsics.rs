@@ -4,6 +4,7 @@ use ipwis_kernel_common::{
     extrinsics::{SYSCALL_ERR_FATAL, SYSCALL_ERR_NORMAL, SYSCALL_OK},
     interrupt::InterruptId,
     memory::Memory,
+    modules::{FUNC_NAME_SYSCALL, MODULE_NAME_COMMON},
 };
 
 use crate::{
@@ -13,8 +14,8 @@ use crate::{
 
 pub fn register(linker: &mut IpwisLinker) -> Result<()> {
     linker.func_wrap4_async(
-        "ipwis_kernel",
-        "syscall",
+        MODULE_NAME_COMMON,
+        FUNC_NAME_SYSCALL,
         |caller, handler, inputs, outputs, errors| {
             Box::new(syscall(caller, handler, inputs, outputs, errors))
         },
@@ -31,7 +32,7 @@ async fn syscall(
 ) -> ExternDataRef {
     let mut memory = unsafe {
         // allow interior mutability
-        match IpwisMemory::try_new(::core::mem::transmute::<_, &mut IpwisCaller>(&mut caller)) {
+        match IpwisMemory::with_caller(::core::mem::transmute::<_, &mut IpwisCaller>(&mut caller)) {
             Ok(memory) => memory,
             Err(error) => {
                 warn!("{}", error);

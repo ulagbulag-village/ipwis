@@ -2,12 +2,15 @@
 resolver = "2"
 members = [
     "api",
+    "builder",
     "common",
     "demo",
     "kernel",
     "kernel/api",
     "kernel/builder",
     "kernel/common",
+    "modules/spawn/api",
+    "modules/spawn/common",
     "modules/stream/api",
     "modules/stream/common",
     "pallet",

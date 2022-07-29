@@ -17,9 +17,11 @@ repository = "https://github.com/ulagbulag-village/ipwis"
 name = "ipwis_kernel_api"
 crate-type = ["cdylib", "rlib"]
 
+[dependencies]
+ipwis-kernel-common = { path = "../common" }
+
 [target.'cfg(not(target_os = "wasi"))'.dependencies]
 ipis = { git = "https://github.com/ulagbulag-village/ipis" }
-ipwis-kernel-common = { path = "../common" }
 
 wasmtime = { version = "0.38", features = ["cache"] }
 wasmtime-wasi = "0.38"

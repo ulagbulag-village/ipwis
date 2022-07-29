@@ -9,14 +9,18 @@ use ipis::{
     },
     tokio::{self, sync::Mutex},
 };
-use ipwis_kernel_api::wasmtime::{Engine, Module, Trap};
+use ipwis_kernel_api::{
+    memory::IpwisMemoryInner,
+    wasmtime::{Engine, Module, Trap},
+};
 use ipwis_kernel_common::{
     data::ExternDataRef,
     extrinsics::InterruptArgs,
-    modules::MODULE_NAME_API,
+    memory::Memory,
+    modules::{FUNC_NAME_SYSCALL, MODULE_NAME_API},
     protection::ProtectionMode,
     resource::ResourceId,
-    task::{TaskCtx, TaskId, TaskPtr, TaskState},
+    task::{TaskCtx, TaskId, TaskState},
 };
 
 use crate::{
@@ -46,7 +50,7 @@ impl<T> TaskStore<T> {
         linker: &mut IpwisLinker,
         module: &Module,
         resource_id: ResourceId,
-        ctx: TaskPtr,
+        ctx: Arc<GuarantorSigned<TaskCtx>>,
         f: F,
     ) -> Result<TaskId>
     where
@@ -71,7 +75,7 @@ impl<T> TaskStore<T> {
             linker.engine(),
             IpwisCtx::new(linker.engine(), ctx, state, self.interrupt_manager.clone())?,
         );
-        let ctx = store.data().task;
+        let ctx = store.data().task.clone();
         let state = store.data().state.clone();
 
         // register API module
@@ -83,22 +87,36 @@ impl<T> TaskStore<T> {
 
         // find main function
         let func = instance
-            .get_func(&mut store, "_ipwis_call")
-            .expect("failed to find `_ipwis_call` func")
-            .typed::<InterruptArgs, (), _>(&mut store)
-            .expect("failed to parse `_ipwis_call` func");
-
-        dbg!(1);
+            .get_func(&mut store, FUNC_NAME_SYSCALL)
+            .expect("failed to find `syscall` func")
+            .typed::<InterruptArgs, ExternDataRef, _>(&mut store)
+            .expect("failed to parse `syscall` func");
 
         // external call
         // note: the inner schedule is controlled by `wasmtime` engine, not by this scheduler
-        let handler = tokio::spawn(async move {
-            func.call_async(&mut store, (0, 0, 0, 0))
-                .await
-                .map(|()| store)
-        });
+        let handler = {
+            let state = state.clone();
+            let (inputs, outputs, errors) = {
+                let mut memory = IpwisMemoryInner::with_instance(&instance, &mut store)?;
 
-        dbg!(1);
+                let inputs = memory.dump_doubled_object(&ctx.constraints.inputs).await?;
+                let outputs = memory.dump_doubled_null().await?;
+                let errors = memory.dump_doubled_null().await?;
+                (inputs, outputs, errors)
+            };
+
+            tokio::spawn(async move {
+                func.call_async(
+                    &mut store,
+                    (0 /* nullptr */, inputs.ptr, outputs.ptr, errors.ptr),
+                )
+                .await?;
+
+                state.lock().await.is_working = false;
+
+                Ok(store)
+            })
+        };
 
         // instantiate and store the task
         let task = f(Task {
@@ -110,8 +128,6 @@ impl<T> TaskStore<T> {
             self.map.lock().await.insert(task_id, task);
         }
 
-        dbg!(1);
-
         Ok(task_id)
     }
 }
@@ -122,17 +138,12 @@ impl TaskStore<Entry> {
         linker: &IpwisLinker,
         module: &Module,
         id: ResourceId,
-        ctx: GuarantorSigned<TaskCtx>,
+        ctx: Arc<GuarantorSigned<TaskCtx>>,
     ) -> Result<TaskId> {
-        let ctx = Box::new(ctx);
-
-        self.spawn_inner(
-            &mut linker.clone(),
-            module,
-            id,
-            TaskPtr::new(&ctx),
-            |task| Entry { ctx, task },
-        )
+        self.spawn_inner(&mut linker.clone(), module, id, ctx.clone(), |task| Entry {
+            ctx,
+            task,
+        })
         .await
     }
 
@@ -156,7 +167,7 @@ impl TaskStore<Task> {
         linker: &mut IpwisLinker,
         module: &Module,
         id: ResourceId,
-        ctx: TaskPtr,
+        ctx: Arc<GuarantorSigned<TaskCtx>>,
     ) -> Result<TaskId> {
         self.spawn_inner(linker, module, id, ctx, |task| task).await
     }

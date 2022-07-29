@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
+use ipis::core::account::GuarantorSigned;
 use ipis::{core::anyhow::Result, tokio::sync::Mutex};
 use ipwis_kernel_api::wasmtime::{Caller, Engine, Linker, Store};
 use ipwis_kernel_api::wasmtime_wasi::{WasiCtx, WasiCtxBuilder};
-use ipwis_kernel_common::task::{TaskPtr, TaskState};
+use ipwis_kernel_common::task::{TaskCtx, TaskState};
 
 use crate::{
     interrupt::{InterruptHandlerStore, InterruptManager},
@@ -16,7 +17,7 @@ pub type IpwisStore = Store<IpwisCtx>;
 
 pub struct IpwisCtx {
     pub wasi: WasiCtx,
-    pub task: TaskPtr,
+    pub task: Arc<GuarantorSigned<TaskCtx>>,
     pub state: Arc<Mutex<TaskState>>,
     pub store: TaskStore<Task>,
     pub interrupt_handlers: InterruptHandlerStore,
@@ -25,7 +26,7 @@ pub struct IpwisCtx {
 impl IpwisCtx {
     pub fn new(
         engine: &Engine,
-        ctx: TaskPtr,
+        ctx: Arc<GuarantorSigned<TaskCtx>>,
         state: TaskState,
         interrupt_manager: Arc<InterruptManager>,
     ) -> Result<Self> {

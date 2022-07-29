@@ -10,5 +10,7 @@ pub mod task;
 
 pub mod modules {
     pub const MODULE_NAME_API: &str = "__ipwis_kernel_api";
-    pub const MODULE_NAME_CUSTOM: &str = "__ipwis_custom";
+    pub const MODULE_NAME_COMMON: &str = "__ipwis_kernel";
+
+    pub const FUNC_NAME_SYSCALL: &str = "__ipwis_syscall";
 }

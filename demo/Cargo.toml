@@ -13,9 +13,14 @@ repository = "https://github.com/ulagbulag-village/ipwis"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lib]
+name = "ipwis_demo"
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
 ipis = { git = "https://github.com/ulagbulag-village/ipis", features = [
     "derive",
 ] }
 ipwis-common = { path = "../common" }
 ipwis-modules-stream-common = { path = "../modules/stream/common" }
+ipwis-kernel-common = { path = "../kernel/common" }

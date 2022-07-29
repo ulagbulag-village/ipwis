@@ -1,5 +1,5 @@
 [package]
-name = "ipwis-kernel-builder"
+name = "ipwis-builder"
 version = "0.1.0"
 edition = "2021"
 
@@ -15,5 +15,3 @@ repository = "https://github.com/ulagbulag-village/ipwis"
 
 [dependencies]
 ipis = { git = "https://github.com/ulagbulag-village/ipis" }
-
-build-target = "0.4"
