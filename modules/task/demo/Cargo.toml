@@ -1,0 +1,39 @@
+[package]
+name = "ipwis-modules-task-demo"
+version = "0.1.0"
+edition = "2021"
+
+authors = ["Ho Kim <ho.kim@ulagbulag.io>"]
+description = "InterPlanetary WASI Interpretation Service"
+documentation = "https://docs.rs/ipwis"
+license = "MIT OR Apache-2.0"
+readme = "../../../README.md"
+homepage = "https://ulagbulag.io/"
+repository = "https://github.com/ulagbulag-village/ipwis"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[[bin]]
+name = "ipwis_modules_task_demo"
+path = "src/main.rs"
+
+[lib]
+name = "ipwis_modules_task_demo"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+ipis = { git = "https://github.com/ulagbulag-village/ipis", features = [
+    "derive",
+] }
+ipwis-modules-stream-common = { path = "../../stream/common" }
+ipwis-modules-task-common-wasi = { path = "../common/wasi" }
+
+[target.'cfg(not(target_os = "wasi"))'.dependencies]
+ipiis-api = { git = "https://github.com/ulagbulag-village/ipiis" }
+ipwis-modules-stream-api = { path = "../../stream/api" }
+ipwis-modules-task-api = { path = "../api" }
+ipwis-modules-task-api-wasi = { path = "../api/wasi" }
+ipwis-modules-task-common = { path = "../common" }
+
+[build-dependencies]
+ipwis-modules-task-builder = { path = "../builder" }
